@@ -38,6 +38,11 @@ class VideoController extends Controller
         return view('home', compact('videos'));
     }
 
+    /**
+     * Store new Video
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         if ($request->hasFile('video')) {
@@ -49,6 +54,7 @@ class VideoController extends Controller
                 ]
             ]);
 
+            //if validation fails then send status false
             if ($validator->fails()) {
                 return response()->json(['status' => false, 'message' => $validator->errors()->first()], 500);
             }
@@ -60,13 +66,16 @@ class VideoController extends Controller
             $name = pathinfo($url, PATHINFO_FILENAME);
 
             $data = ['title'=>$title,'name' => $name, 'url' => $url, 'user_id' => auth()->user()->id, 'status' => 'pending'];
+            //create video record in database
             $video = Video::query()->create($data);
 
             $user = auth()->user();
             $path = 'uploads/' . $user->id . '/';
 
+            //store video to disk
             $request->video->storeAs($path, $url, 'public');
 
+            //start video format conversion process in background
             FileConversion::dispatch($video, $user);
         }
         return response()->json(['status' => true, 'user_id' => $user->id], 200);
